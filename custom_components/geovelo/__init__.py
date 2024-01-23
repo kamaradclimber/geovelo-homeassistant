@@ -29,6 +29,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.components.sensor import (
     RestoreSensor,
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
 )
@@ -185,6 +186,8 @@ def build_sensors():
         GeoveloEntityDescription(
             key="distance",
             name="Total cycled distance",
+            native_unit_of_measurement="m",
+            device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
         ),
     ]
