@@ -1,0 +1,15 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "user_id": "User ID"
+        },
+        "description": "Enter credentials for geovelo website",
+        "title": "Credentials"
+      }
+    }
+  }
+}
