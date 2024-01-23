@@ -52,7 +52,7 @@ class GeoveloApi:
 
     async def get_traces(self, user_id, authorization_header, start_date, end_date) -> dict:
         """All traces in the selected time period"""
-        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date}&date_end=#{end_date}&condensed=true&pages_size=1000000"
+        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-Y')}&date_end=#{end_date.strftime('%d-%m-%Y')}&condensed=true&pages_size=1000000"
         headers = {
             "Accept": "application/json",
             "Api-Key": API_KEY,
