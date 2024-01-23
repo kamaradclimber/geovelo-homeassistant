@@ -60,27 +60,49 @@ class GeoveloApi:
 
     async def get_traces(
         self, user_id, authorization_header, start_date, end_date
-    ) -> dict:
+    ) -> list:
         """All traces in the selected time period"""
-        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&condensed=true&page_size=1000000"
+        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=10"
         _LOGGER.debug(f"Will contact {url} to get traces")
+        return await self.fetch_next(url, authorization_header, user_id)
+
+
+    async def fetch_next(self, url, authorization_header, user_id) -> list:
+        _LOGGER.debug(f"Authorization: {authorization_header}")
         headers = {
-            "Accept": "application/json",
+            "Accept": "*/*",
+            "Accept-Language": "fr-FR,en;q=0.7,en-US,q=0.3",
             "Api-Key": API_KEY,
             "Authorization": authorization_header,
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:92.0) Gecko/20100101 Firefox/92.0",
-            "Accept-Language": "en,en-US;q=0.5",
-            "Referer": "https://www.geovelo.fr/",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "DNT": "1",
+            "Host": "backend.geovelo.fr",
+            "Origin": "https://geovelo.app",
+            "Pragma": "no-cache",
+            "Referer": "https://geovelo.app/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-GPC": "1",
             "Source": "website",
+            "TE": "trailers",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:92.0) Gecko/20100101 Firefox/92.0",
         }
 
         resp = await self._session.get(url, headers=headers)
         if resp.status != 200:
+            d = await resp.text()
+            _LOGGER.debug(f"Failure {resp}: {d}")
             raise GeoveloApiError(
                 f"Unable to get traces for {user_id}, response code was {resp.status}"
             )
 
         data = await resp.json()
-        _LOGGER.debug("Got geovelo data : %s ", data)
+        # _LOGGER.debug("Got geovelo data : %s ", data)
+        traces = []
+        if data["next"] is not None:
+            _LOGGER.debug(f"Will contact {data['next']} to get more traces")
+            traces = await self.fetch_next(data["next"], authorization_header, user_id)
 
-        return data["results"]
+        return data["results"] + traces
