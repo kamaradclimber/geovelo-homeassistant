@@ -1,0 +1,13 @@
+{
+  "domain": "geovelo",
+  "name": "Geovelo",
+  "codeowners": ["@kamaradclimber"],
+  "config_flow": true,
+  "documentation": "https://github.com/kamaradclimber/geovelo-homeassistant",
+  "integration_type": "device",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/kamaradclimber/geovelo-homeassistant/issues",
+  "requirements": [
+  ],
+  "version": "0.1.0"
+}
