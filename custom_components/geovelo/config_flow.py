@@ -21,11 +21,13 @@ _LOGGER = logging.getLogger(__name__)
 # in async_setup_entry we call hass.config_entries.async_forward_entry_setups to setup each relevant platform (sensor in our case)
 # HA calls async_setup_entry from sensor.py
 
-CREDS_SCHEMA = vol.Schema({
-    vol.Required("username", default="my_email@example.org"): cv.string,
-    vol.Required("password", default="aZ2@@1!78aRaLA"): cv.string,
-    vol.Required("user_id", default="12345"): cv.string,
-    })
+CREDS_SCHEMA = vol.Schema(
+    {
+        vol.Required("username", default="my_email@example.org"): cv.string,
+        vol.Required("password", default="aZ2@@1!78aRaLA"): cv.string,
+        vol.Required("user_id", default="12345"): cv.string,
+    }
+)
 
 
 class SetupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

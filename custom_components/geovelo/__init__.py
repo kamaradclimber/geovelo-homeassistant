@@ -27,7 +27,11 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.components.sensor import RestoreSensor, SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import (
+    RestoreSensor,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from .const import (
     DOMAIN,
 )
@@ -110,11 +114,15 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             session = async_get_clientsession(self.hass)
             geovelo_api = GeoveloApi(session)
             # TODO(kamaradclimber): only fetch traces since ~successful fetch
-            start_date = datetime.now() - timedelta(days=360*10)
+            start_date = datetime.now() - timedelta(days=360 * 10)
             end_date = datetime.now()
             try:
-                auth_token = await geovelo_api.get_authorization_header(username, password)
-                traces = await geovelo_api.get_traces(user_id, auth_token, start_date, end_date)
+                auth_token = await geovelo_api.get_authorization_header(
+                    username, password
+                )
+                traces = await geovelo_api.get_traces(
+                    user_id, auth_token, start_date, end_date
+                )
             except GeoveloApiError as e:
                 raise UpdateFailed(f"Failed fetching geovelo data: {e}")
 
@@ -122,9 +130,11 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
 
+
 @dataclass(frozen=True, kw_only=True)
 class GeoveloEntityDescription(SensorEntityDescription):
     on_receive: Callable | None = None
+
 
 class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
     def __init__(
@@ -137,7 +147,9 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self.hass = hass
-        self._attr_unique_id = f"{config_entry.data.get('user_id')}-sensor-{description.key}"
+        self._attr_unique_id = (
+            f"{config_entry.data.get('user_id')}-sensor-{description.key}"
+        )
 
         self._attr_device_info = DeviceInfo(
             name=f"Cycle for {config_entry.data.get('user_id')}",
@@ -145,7 +157,7 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
             identifiers={
                 (
                     DOMAIN,
-                    str(config_entry.data.get('user_id')),
+                    str(config_entry.data.get("user_id")),
                 )
             },
             manufacturer="geovelo",
@@ -158,17 +170,21 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
             _LOGGER.debug("Last coordinator failed, assuming state has not changed")
             return
         if self.entity_description.on_receive is not None:
-            self._attr_native_value = self.entity_description.on_receive(self.coordinator.data)
+            self._attr_native_value = self.entity_description.on_receive(
+                self.coordinator.data
+            )
             self.async_write_ha_state()
+
 
 def sum_on_attribute(attribute_name, entries):
     return sum([el[attribute_name] for el in entries])
 
+
 def build_sensors():
     return [
-    GeoveloEntityDescription(
-        key="distance",
-        name="Total cycled distance",
-        on_receive=partial(sum_on_attribute, "distance")
-    ),
+        GeoveloEntityDescription(
+            key="distance",
+            name="Total cycled distance",
+            on_receive=partial(sum_on_attribute, "distance"),
+        ),
     ]

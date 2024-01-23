@@ -14,7 +14,10 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     geovelo_coordinator = hass.data[DOMAIN][entry.entry_id]["geovelo_coordinator"]
-    sensors = [GeoveloSensorEntity(geovelo_coordinator, hass, entry, description) for description in build_sensors()]
+    sensors = [
+        GeoveloSensorEntity(geovelo_coordinator, hass, entry, description)
+        for description in build_sensors()
+    ]
 
     async_add_entities(sensors)
     await geovelo_coordinator.async_config_entry_first_refresh()
