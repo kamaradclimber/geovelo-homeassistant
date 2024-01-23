@@ -54,7 +54,7 @@ class GeoveloApi:
                 f"Unable to get authorization token for {username}. Status was {resp.status}"
             )
 
-        _LOGGER.debug("Got auth data from geovelo")
+        _LOGGER.debug(f"Got auth data from geovelo")
 
         return resp.headers["Authorization"]
 
@@ -62,7 +62,7 @@ class GeoveloApi:
         self, user_id, authorization_header, start_date, end_date
     ) -> dict:
         """All traces in the selected time period"""
-        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-Y')}&date_end=#{end_date.strftime('%d-%m-%Y')}&condensed=true&pages_size=1000000"
+        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&condensed=true&page_size=1000000"
         _LOGGER.debug(f"Will contact {url} to get traces")
         headers = {
             "Accept": "application/json",
@@ -76,7 +76,9 @@ class GeoveloApi:
 
         resp = await self._session.get(url, headers=headers)
         if resp.status != 200:
-            raise GeoveloApiError(f"Unable to get traces for {user_id}")
+            raise GeoveloApiError(
+                f"Unable to get traces for {user_id}, response code was {resp.status}"
+            )
 
         data = await resp.json()
         _LOGGER.debug("Got geovelo data : %s ", data)
