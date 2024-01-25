@@ -98,14 +98,15 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         )
         self.config = config
         self.hass = hass
-        self._custom_store = Store(hass, self.STORE_VERSION, f"geovelo_traces_{self.config['user_id']}")
+        self._custom_store = Store(
+            hass, self.STORE_VERSION, f"geovelo_traces_{self.config['user_id']}"
+        )
 
     def parse_date(self, string):
         try:
             return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%f%z")
         except Exception:
             return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S%z")
-
 
     async def update_method(self):
         """Fetch data from API endpoint."""
@@ -130,12 +131,17 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
                 previous_data = await self._custom_store.async_load()
                 if previous_data is not None:
                     traces = previous_data
-                    last = max([self.parse_date(trace["end_datetime"]) for trace in traces])
+                    last = max(
+                        [self.parse_date(trace["end_datetime"]) for trace in traces]
+                    )
                     # we assume nobody update their trips more than 1 week in the past
                     start_date = last - timedelta(days=7)
             except Exception as e:
                 import traceback
-                _LOGGER.warn(f"Impossible to load previous data from {self._custom_store.path}: {type(e).__name__} {e.args}")
+
+                _LOGGER.warn(
+                    f"Impossible to load previous data from {self._custom_store.path}: {type(e).__name__} {e.args}"
+                )
 
             session = async_get_clientsession(self.hass)
             geovelo_api = GeoveloApi(session)
@@ -149,7 +155,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             except GeoveloApiError as e:
                 raise UpdateFailed(f"Failed fetching geovelo data: {e}")
 
-            existing_ids = { trace["id"] for trace in traces }
+            existing_ids = {trace["id"] for trace in traces}
             for new_trace in new_traces:
                 if new_trace["id"] not in existing_ids:
                     existing_ids.add(new_trace["id"])
@@ -157,7 +163,9 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             try:
                 await self._custom_store.async_save(traces)
             except Exception as e:
-                _LOGGER.exception(f"Error while caching traces: {e}, will re-query same data next time")
+                _LOGGER.exception(
+                    f"Error while caching traces: {e}, will re-query same data next time"
+                )
             return traces
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}")

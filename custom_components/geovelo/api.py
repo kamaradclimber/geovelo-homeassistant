@@ -66,7 +66,6 @@ class GeoveloApi:
         _LOGGER.debug(f"Will contact {url} to get traces")
         return await self.fetch_next(url, authorization_header, user_id)
 
-
     async def fetch_next(self, url, authorization_header, user_id) -> list:
         headers = {
             "Api-Key": API_KEY,
@@ -93,6 +92,8 @@ class GeoveloApi:
             # by aiohttp without forwarding creds (curl has that behavior as well)
             next_page = next_page._replace(scheme="https")
             _LOGGER.debug(f"Will contact {next_page} to get more traces")
-            traces = await self.fetch_next(urlunparse(next_page), authorization_header, user_id)
+            traces = await self.fetch_next(
+                urlunparse(next_page), authorization_header, user_id
+            )
 
         return data["results"] + traces
