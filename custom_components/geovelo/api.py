@@ -5,6 +5,7 @@ from aiohttp.client import ClientTimeout
 from .const import GEOVELO_API_URL
 import re
 import base64
+from urllib.parse import urlparse, urlunparse
 
 DEFAULT_TIMEOUT = 120
 CLIENT_TIMEOUT = ClientTimeout(total=DEFAULT_TIMEOUT)
@@ -38,7 +39,7 @@ class GeoveloApi:
         )
         headers = {
             "Api-Key": API_KEY,
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:92.0) Gecko/20100101 Firefox/92.0",
+            "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
             "Accept": "application/json, text/plain, */*",
             "Accept-Language": "en,en-US;q=0.5",
             # yes it is a semi-column separation in the password
@@ -54,40 +55,24 @@ class GeoveloApi:
                 f"Unable to get authorization token for {username}. Status was {resp.status}"
             )
 
-        _LOGGER.debug(f"Got auth data from geovelo")
-
+        _LOGGER.debug(f"Got auth data from geovelo ✅")
         return resp.headers["Authorization"]
 
     async def get_traces(
         self, user_id, authorization_header, start_date, end_date
     ) -> list:
         """All traces in the selected time period"""
-        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=10"
+        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=50"
         _LOGGER.debug(f"Will contact {url} to get traces")
         return await self.fetch_next(url, authorization_header, user_id)
 
 
     async def fetch_next(self, url, authorization_header, user_id) -> list:
-        _LOGGER.debug(f"Authorization: {authorization_header}")
         headers = {
-            "Accept": "*/*",
-            "Accept-Language": "fr-FR,en;q=0.7,en-US,q=0.3",
             "Api-Key": API_KEY,
             "Authorization": authorization_header,
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "DNT": "1",
-            "Host": "backend.geovelo.fr",
-            "Origin": "https://geovelo.app",
-            "Pragma": "no-cache",
-            "Referer": "https://geovelo.app/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "cross-site",
-            "Sec-GPC": "1",
             "Source": "website",
-            "TE": "trailers",
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:92.0) Gecko/20100101 Firefox/92.0",
+            "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
         }
 
         resp = await self._session.get(url, headers=headers)
@@ -102,7 +87,12 @@ class GeoveloApi:
         # _LOGGER.debug("Got geovelo data : %s ", data)
         traces = []
         if data["next"] is not None:
-            _LOGGER.debug(f"Will contact {data['next']} to get more traces")
-            traces = await self.fetch_next(data["next"], authorization_header, user_id)
+            next = data["next"]
+            next_page = urlparse(next)
+            # geovelo api returns an http link but their backend makes a 308 which is followed
+            # by aiohttp without forwarding creds (curl has that behavior as well)
+            next_page = next_page._replace(scheme="https")
+            _LOGGER.debug(f"Will contact {next_page} to get more traces")
+            traces = await self.fetch_next(urlunparse(next_page), authorization_header, user_id)
 
         return data["results"] + traces
