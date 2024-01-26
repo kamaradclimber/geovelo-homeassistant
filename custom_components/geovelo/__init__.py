@@ -128,7 +128,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         """
         Decompress <key> from d, in place
         """
-        d[key] = gzip.decompress(base64.b64decode(d[key].encode())).decode()
+        d[key] = json.loads(gzip.decompress(base64.b64decode(d[key].encode())).decode())
 
     COMPRESSED_KEYS = ["geometry", "elevations", "speeds"]
 
