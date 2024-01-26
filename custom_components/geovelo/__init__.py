@@ -257,8 +257,16 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
             self.async_write_ha_state()
 
 
-def sum_on_attribute(attribute_name, entries):
+def sum_on_attribute(attribute_name, entries) -> int:
     return sum([el[attribute_name] for el in entries])
+
+
+def count_nightowl(entries) -> int:
+    count = 0
+    for t in entries:
+        if t["usertracegameprogress"]["during_night"]:
+            count += 1
+    return count
 
 
 def build_sensors():
@@ -269,5 +277,11 @@ def build_sensors():
             native_unit_of_measurement="m",
             device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
+        ),
+        GeoveloEntityDescription(
+            key="night_owl_stats",
+            name="Night trips",
+            icon="mdi:owl",
+            on_receive=count_nightowl,
         ),
     ]
