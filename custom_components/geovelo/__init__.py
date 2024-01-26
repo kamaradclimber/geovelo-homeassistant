@@ -1,6 +1,9 @@
 import os
 import re
 import json
+import gzip
+import copy
+import base64
 import urllib.parse
 import logging
 from functools import partial
@@ -114,6 +117,41 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
     async def clean_cache(self):
         self._custom_store.async_remove()
 
+    def _compress_key(self, d, key):
+        """
+        Compress <key> from d, in place
+        """
+        s = json.dumps(d[key])
+        d[key] = base64.b64encode(gzip.compress(s.encode())).decode()
+
+    def _decompress_key(self, d, key):
+        """
+        Decompress <key> from d, in place
+        """
+        d[key] = gzip.decompress(base64.b64decode(d[key].encode())).decode()
+
+    COMPRESSED_KEYS = ["geometry", "elevations", "speeds"]
+
+    async def _load_traces(self) -> Optional[list]:
+        traces = await self._custom_store.async_load()
+        if traces is not None:
+            for trace in traces:
+                for key in self.COMPRESSED_KEYS:
+                    self._decompress_key(trace, key)
+        return traces
+
+    async def _store_traces(self, traces):
+        compressed_traces = copy.deepcopy(traces)
+        for trace in compressed_traces:
+            for key in self.COMPRESSED_KEYS:
+                self._compress_key(trace, key)
+        try:
+            await self._custom_store.async_save(compressed_traces)
+        except Exception as e:
+            _LOGGER.exception(
+                f"Error while caching traces: {e}, will re-query same data next time"
+            )
+
     async def update_method(self):
         """Fetch data from API endpoint."""
         try:
@@ -131,10 +169,12 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             user_id = self.config["user_id"]
 
             start_date = datetime.now() - timedelta(days=360 * 10)
+            if "GEOVELO_FAST" in os.environ:
+                start_date = datetime.now() - timedelta(days=30)
             end_date = datetime.now()
             traces = []
             try:
-                previous_data = await self._custom_store.async_load()
+                previous_data = await self._load_traces()
                 if previous_data is not None:
                     traces = previous_data
                     last = max(
@@ -166,12 +206,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
                 if new_trace["id"] not in existing_ids:
                     existing_ids.add(new_trace["id"])
                     traces.append(new_trace)
-            try:
-                await self._custom_store.async_save(traces)
-            except Exception as e:
-                _LOGGER.exception(
-                    f"Error while caching traces: {e}, will re-query same data next time"
-                )
+            await self._store_traces(traces)
             return traces
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
