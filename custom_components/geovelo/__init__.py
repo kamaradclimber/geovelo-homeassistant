@@ -31,15 +31,13 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.components.image import ImageEntity, ImageEntityDescription
 from homeassistant.components.sensor import (
-    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
 )
-from .const import (
-    DOMAIN,
-)
+from .const import DOMAIN, GEOVELO_API_URL
 from .api import GeoveloApi, GeoveloApiError
 
 
@@ -57,7 +55,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # will make sure async_setup_entry from sensor.py is called
-    await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
+    await hass.config_entries.async_forward_entry_setups(
+        entry, [Platform.SENSOR, Platform.IMAGE]
+    )
 
     # subscribe to config updates
     entry.async_on_unload(entry.add_update_listener(update_entry))
@@ -89,6 +89,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
+def parse_date(string):
+    try:
+        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%f%z")
+    except Exception:
+        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S%z")
+
+
 class GeoveloAPICoordinator(DataUpdateCoordinator):
     """A coordinator to fetch data from the api only once"""
 
@@ -107,12 +114,6 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         self._custom_store = Store(
             hass, self.STORE_VERSION, f"geovelo_traces_{self.config['user_id']}"
         )
-
-    def parse_date(self, string):
-        try:
-            return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%f%z")
-        except Exception:
-            return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S%z")
 
     async def clean_cache(self):
         self._custom_store.async_remove()
@@ -177,9 +178,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
                 previous_data = await self._load_traces()
                 if previous_data is not None:
                     traces = previous_data
-                    last = max(
-                        [self.parse_date(trace["end_datetime"]) for trace in traces]
-                    )
+                    last = max([parse_date(trace["end_datetime"]) for trace in traces])
                     # we assume nobody update their trips more than 1 week in the past
                     start_date = last - timedelta(days=7)
             except Exception as e:
@@ -213,7 +212,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
 
 
 @dataclass(frozen=True, kw_only=True)
-class GeoveloEntityDescription(SensorEntityDescription):
+class GeoveloSensorEntityDescription(SensorEntityDescription):
     on_receive: Callable | None = None
 
 
@@ -223,7 +222,7 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
         coordinator: GeoveloAPICoordinator,
         hass: HomeAssistant,
         config_entry: ConfigEntry,
-        description: GeoveloEntityDescription,
+        description: GeoveloSensorEntityDescription,
     ):
         super().__init__(coordinator)
         self.entity_description = description
@@ -271,17 +270,86 @@ def count_nightowl(entries) -> int:
 
 def build_sensors():
     return [
-        GeoveloEntityDescription(
+        GeoveloSensorEntityDescription(
             key="distance",
             name="Total cycled distance",
             native_unit_of_measurement="m",
             device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
         ),
-        GeoveloEntityDescription(
+        GeoveloSensorEntityDescription(
             key="night_owl_stats",
             name="Night trips",
             icon="mdi:owl",
             on_receive=count_nightowl,
         ),
+    ]
+
+
+@dataclass(frozen=True, kw_only=True)
+class GeoveloImageEntityDescription(ImageEntityDescription):
+    on_receive: Callable | None = None
+
+
+class GeoveloImageEntity(CoordinatorEntity, ImageEntity):
+    def __init__(
+        self,
+        coordinator: GeoveloAPICoordinator,
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        description: GeoveloSensorEntityDescription,
+    ):
+        super().__init__(coordinator)
+        ImageEntity.__init__(self, hass)
+        self.entity_description = description
+        self.hass = hass
+        self._attr_unique_id = (
+            f"{config_entry.data.get('user_id')}-sensor-{description.key}"
+        )
+
+        self._attr_device_info = DeviceInfo(
+            name=f"Cycle for {config_entry.data.get('user_id')}",
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={
+                (
+                    DOMAIN,
+                    str(config_entry.data.get("user_id")),
+                )
+            },
+            manufacturer="geovelo",
+        )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        _LOGGER.debug(f"Receiving an update for {self.unique_id} image")
+        if not self.coordinator.last_update_success:
+            _LOGGER.debug("Last coordinator failed, assuming state has not changed")
+            return
+        if self.entity_description.on_receive is not None:
+            (image_last_updated, image_url) = self.entity_description.on_receive(
+                self.coordinator.data
+            )
+            self._attr_image_last_updated = image_last_updated
+            self._attr_image_url = image_url
+            self.async_write_ha_state()
+
+
+def extract_last_trip_info(traces) -> Tuple[Optional[datetime], Optional[str]]:
+    def extract_end_date(trace):
+        return parse_date(trace["end_datetime"])
+
+    latest_trace = max(traces, default=None, key=extract_end_date)
+    if latest_trace is None:
+        return (None, None)
+    image_url = f"{GEOVELO_API_URL}/{latest_trace['preview']}"
+    return (extract_end_date(latest_trace), image_url)
+
+
+def build_images():
+    return [
+        GeoveloImageEntityDescription(
+            key="last_trace",
+            name="Last Trip",
+            on_receive=extract_last_trip_info,
+        )
     ]
