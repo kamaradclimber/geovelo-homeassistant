@@ -79,7 +79,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry, [Platform.SENSOR]
     )
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        old_entry = hass.data[DOMAIN].pop(entry.entry_id)
+        if "geovelo_coordinator" in old_entry:
+            coordinator = old_entry["geovelo_coordinator"]
+            await coordinator.clean_cache()
     return unload_ok
 
 
@@ -107,6 +110,9 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%f%z")
         except Exception:
             return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S%z")
+
+    async def clean_cache(self):
+        self._custom_store.async_remove()
 
     async def update_method(self):
         """Fetch data from API endpoint."""
