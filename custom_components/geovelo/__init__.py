@@ -16,6 +16,7 @@ import aiohttp
 from dataclasses import dataclass
 from collections.abc import Callable
 
+from homeassistant.components.sensor.const import SensorStateClass
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import Platform, STATE_ON
@@ -317,12 +318,14 @@ def build_sensors():
             device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
             monthly_utility=True,
+            state_class=SensorStateClass.TOTAL,
         ),
         GeoveloSensorEntityDescription(
             key="night_owl_stats",
             name="Night trips",
             icon="mdi:owl",
             on_receive=count_nightowl,
+            state_class=SensorStateClass.TOTAL,
         ),
     ]
 
