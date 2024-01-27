@@ -334,7 +334,7 @@ def build_sensors():
             icon="mdi:leaf",
             on_receive=compute_co2,
             state_class=SensorStateClass.MEASUREMENT,
-            suggested_display_precision=1,
+            suggested_display_precision=0,
         ),
         GeoveloSensorEntityDescription(
             key="night_owl_stats",
