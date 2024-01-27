@@ -309,6 +309,12 @@ def count_nightowl(entries) -> int:
     return count
 
 
+def compute_co2(entries):
+    # this value is the one used by geovelo
+    CO2_PER_KM = 1 / (4.594843462246778 * 1000)
+    return sum_on_attribute("distance", entries) * CO2_PER_KM
+
+
 def build_sensors():
     return [
         GeoveloSensorEntityDescription(
@@ -319,6 +325,16 @@ def build_sensors():
             on_receive=partial(sum_on_attribute, "distance"),
             monthly_utility=True,
             state_class=SensorStateClass.TOTAL,
+        ),
+        GeoveloSensorEntityDescription(
+            key="co2",
+            name="Total saved co2",
+            native_unit_of_measurement="kg",
+            device_class=SensorDeviceClass.WEIGHT,
+            icon="mdi:leaf",
+            on_receive=compute_co2,
+            state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=1,
         ),
         GeoveloSensorEntityDescription(
             key="night_owl_stats",
