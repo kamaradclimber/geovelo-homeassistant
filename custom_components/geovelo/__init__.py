@@ -366,6 +366,7 @@ class GeoveloImageEntity(CoordinatorEntity, ImageEntity):
         self._attr_unique_id = (
             f"{config_entry.data.get('user_id')}-sensor-{description.key}"
         )
+        self.image_url = None
 
         self._attr_device_info = DeviceInfo(
             name=f"Cycle for {config_entry.data.get('user_id')}",
