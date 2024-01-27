@@ -3,6 +3,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
+from datetime import timedelta
 
 from .const import DOMAIN
 from . import build_sensors, GeoveloSensorEntity
@@ -15,7 +16,9 @@ async def async_setup_entry(
 ) -> None:
     geovelo_coordinator = hass.data[DOMAIN][entry.entry_id]["geovelo_coordinator"]
     sensors = [
-        GeoveloSensorEntity(geovelo_coordinator, hass, entry, description)
+        GeoveloSensorEntity(
+            geovelo_coordinator, hass, entry, description, async_add_entities
+        )
         for description in build_sensors()
     ]
 

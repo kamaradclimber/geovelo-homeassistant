@@ -15,14 +15,15 @@ from itertools import dropwhile, takewhile
 import aiohttp
 from dataclasses import dataclass
 from collections.abc import Callable
+
 from homeassistant.helpers.storage import Store
-
-
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import Platform, STATE_ON
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.components.utility_meter.sensor import UtilityMeterSensor
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -214,6 +215,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
 @dataclass(frozen=True, kw_only=True)
 class GeoveloSensorEntityDescription(SensorEntityDescription):
     on_receive: Callable | None = None
+    monthly_utility: bool = False
 
 
 class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
@@ -223,10 +225,13 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
         hass: HomeAssistant,
         config_entry: ConfigEntry,
         description: GeoveloSensorEntityDescription,
+        async_add_entities: AddEntitiesCallback,
     ):
         super().__init__(coordinator)
         self.entity_description = description
+        self.config_entry = config_entry
         self.hass = hass
+        self._async_add_entities = async_add_entities
         self._attr_unique_id = (
             f"{config_entry.data.get('user_id')}-sensor-{description.key}"
         )
@@ -242,6 +247,27 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
             },
             manufacturer="geovelo",
         )
+
+    @callback
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self.entity_description.monthly_utility:
+            monthly = UtilityMeterSensor(
+                meter_type="monthly",
+                name=f"Monthly {self.name}",
+                source_entity=self.entity_id,
+                unique_id=f"{self.unique_id}_monthly",
+                cron_pattern=None,
+                delta_values=None,
+                meter_offset=timedelta(seconds=0),
+                net_consumption=None,
+                parent_meter=self.config_entry.entry_id,  # not sure of what it does!
+                periodically_resetting=False,
+                tariff_entity=None,
+                tariff=None,
+                device_info=self.device_info,
+            )
+            self._async_add_entities([monthly])
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -276,6 +302,7 @@ def build_sensors():
             native_unit_of_measurement="m",
             device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
+            monthly_utility=True,
         ),
         GeoveloSensorEntityDescription(
             key="night_owl_stats",
