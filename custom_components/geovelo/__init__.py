@@ -337,6 +337,13 @@ def build_sensors():
             suggested_display_precision=0,
         ),
         GeoveloSensorEntityDescription(
+            key="trip_count",
+            name="Number of trips",
+            on_receive=len,
+            monthly_utility=True,
+            state_class=SensorStateClass.TOTAL,
+        ),
+        GeoveloSensorEntityDescription(
             key="night_owl_stats",
             name="Night trips",
             icon="mdi:owl",
