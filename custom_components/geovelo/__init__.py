@@ -129,7 +129,9 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         """
         Decompress <key> from d, in place
         """
-        d[key] = json.loads(gzip.decompress(base64.b64decode(d[key].encode())).decode())
+        binary = base64.b64decode(d[key])
+        uncompressed = gzip.decompress(binary)
+        d[key] = json.loads(uncompressed)
 
     COMPRESSED_KEYS = ["geometry", "elevations", "speeds"]
 
@@ -182,8 +184,6 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
                     # we assume nobody update their trips more than 1 week in the past
                     start_date = last - timedelta(days=7)
             except Exception as e:
-                import traceback
-
                 _LOGGER.warn(
                     f"Impossible to load previous data from {self._custom_store.path}: {type(e).__name__} {e.args}"
                 )
