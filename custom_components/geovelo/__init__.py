@@ -115,6 +115,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         self._custom_store = Store(
             hass, self.STORE_VERSION, f"geovelo_traces_{self.config['user_id']}"
         )
+        self._has_loaded_once = False
 
     async def clean_cache(self):
         self._custom_store.async_remove()
@@ -126,22 +127,34 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         s = json.dumps(d[key])
         d[key] = base64.b64encode(gzip.compress(s.encode())).decode()
 
-    def _decompress_key(self, d, key):
+    def _decompress_key(self, d, key, i):
         """
         Decompress <key> from d, in place
         """
-        binary = base64.b64decode(d[key])
+        if isinstance(d[key], dict):
+            _LOGGER.warn(
+                f"For some reason {key} ({i}) had not been compressed when storing the file"
+            )
+            return
+        binary = base64.b64decode(d[key].encode())
         uncompressed = gzip.decompress(binary)
         d[key] = json.loads(uncompressed)
 
     COMPRESSED_KEYS = ["geometry", "elevations", "speeds"]
 
     async def _load_traces(self) -> Optional[list]:
+        if self.data is not None:
+            # don't load from store if we already ran once
+            return self.data
         traces = await self._custom_store.async_load()
-        if traces is not None:
-            for trace in traces:
-                for key in self.COMPRESSED_KEYS:
-                    self._decompress_key(trace, key)
+        if traces is None:
+            _LOGGER.warn(
+                "No traces loaded from cache, it should only happen when installing this integration"
+            )
+            return None
+        for i, trace in enumerate(traces):
+            for key in self.COMPRESSED_KEYS:
+                self._decompress_key(trace, key, i)
         return traces
 
     async def _store_traces(self, traces):
