@@ -152,6 +152,7 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
                 "No traces loaded from cache, it should only happen when installing this integration"
             )
             return None
+        traces = copy.deepcopy(traces)
         for i, trace in enumerate(traces):
             for key in self.COMPRESSED_KEYS:
                 self._decompress_key(trace, key, i)
