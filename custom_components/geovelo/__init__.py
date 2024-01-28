@@ -214,12 +214,8 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             session = async_get_clientsession(self.hass)
             geovelo_api = GeoveloApi(session)
             try:
-                auth_token = await geovelo_api.get_authorization_header(
-                    username, password
-                )
-                new_traces = await geovelo_api.get_traces(
-                    user_id, auth_token, start_date, end_date
-                )
+                await geovelo_api.authenticate(username, password)
+                new_traces = await geovelo_api.get_traces(start_date, end_date)
             except GeoveloApiError as e:
                 raise UpdateFailed(f"Failed fetching geovelo data: {e}")
 

@@ -25,7 +25,6 @@ CREDS_SCHEMA = vol.Schema(
     {
         vol.Required("username", default="my_email@example.org"): cv.string,
         vol.Required("password", default="aZ2@@1!78aRaLA"): cv.string,
-        vol.Required("user_id", default="12345"): cv.string,
     }
 )
 
@@ -56,7 +55,9 @@ class SetupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.data["username"] = user_input["username"]
             self.data["password"] = user_input["password"]
-            self.data["user_id"] = user_input["user_id"]
+            api = GeoveloApi()
+            await api.authenticate(user_input["username"], user_input["password"])
+            self.data["user_id"] = api.user_id
             return self.async_create_entry(title="geovelo", data=self.data)
 
         return self._show_setup_form("user", user_input, CREDS_SCHEMA, errors)

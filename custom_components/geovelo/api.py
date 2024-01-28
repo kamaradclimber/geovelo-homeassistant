@@ -28,8 +28,13 @@ class GeoveloApi:
     ) -> None:
         self._timeout = timeout
         self._session = session or aiohttp.ClientSession()
+        self._user_id = None
 
-    async def get_authorization_header(self, username, password) -> str:
+    @property
+    def user_id(self) -> Optional[int]:
+        return self._user_id
+
+    async def authenticate(self, username, password):
         url = f"{GEOVELO_API_URL}/api/v1/authentication/geovelo"
         _LOGGER.debug(f"Will contact {url} to get auth token")
         encoded_auth = (
@@ -56,20 +61,19 @@ class GeoveloApi:
             )
 
         _LOGGER.debug(f"Got auth data from geovelo ✅")
-        return resp.headers["Authorization"]
+        self._user_id = resp.headers["userid"]
+        self._authorization_header = resp.headers["Authorization"]
 
-    async def get_traces(
-        self, user_id, authorization_header, start_date, end_date
-    ) -> list:
+    async def get_traces(self, start_date, end_date) -> list:
         """All traces in the selected time period"""
-        url = f"{GEOVELO_API_URL}/api/v5/users/{user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=50"
+        url = f"{GEOVELO_API_URL}/api/v5/users/{self._user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=50"
         _LOGGER.debug(f"Will contact {url} to get traces")
-        return await self.fetch_next(url, authorization_header, user_id)
+        return await self.fetch_next(url)
 
-    async def fetch_next(self, url, authorization_header, user_id) -> list:
+    async def fetch_next(self, url) -> list:
         headers = {
             "Api-Key": API_KEY,
-            "Authorization": authorization_header,
+            "Authorization": self._authorization_header,
             "Source": "website",
             "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
         }
@@ -79,7 +83,7 @@ class GeoveloApi:
             d = await resp.text()
             _LOGGER.debug(f"Failure {resp}: {d}")
             raise GeoveloApiError(
-                f"Unable to get traces for {user_id}, response code was {resp.status}"
+                f"Unable to get traces for {self._user_id}, response code was {resp.status}"
             )
 
         data = await resp.json()
@@ -92,8 +96,6 @@ class GeoveloApi:
             # by aiohttp without forwarding creds (curl has that behavior as well)
             next_page = next_page._replace(scheme="https")
             _LOGGER.debug(f"Will contact {next_page} to get more traces")
-            traces = await self.fetch_next(
-                urlunparse(next_page), authorization_header, user_id
-            )
+            traces = await self.fetch_next(urlunparse(next_page))
 
         return data["results"] + traces
