@@ -114,7 +114,10 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         self.config = config
         self.hass = hass
         self._custom_store = Store(
-            hass, self.STORE_VERSION, f"geovelo_traces_{self.config['user_id']}"
+            hass,
+            version=self.STORE_VERSION,
+            minor_version=2,
+            key=f"geovelo_traces_{self.config['user_id']}",
         )
         self._has_loaded_once = False
 
@@ -156,14 +159,18 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
         traces = copy.deepcopy(traces)
         for i, trace in enumerate(traces):
             for key in self.COMPRESSED_KEYS:
-                self._decompress_key(trace, key, i)
+                if key in trace:
+                    self._decompress_key(trace, key, i)
         return traces
 
     async def _store_traces(self, traces):
         compressed_traces = copy.deepcopy(traces)
         for trace in compressed_traces:
             for key in self.COMPRESSED_KEYS:
-                self._compress_key(trace, key)
+                # we decide to remove those keys instead of compressing
+                # it saves data on disk
+                if key in trace:
+                    trace.pop(key)
         try:
             await self._custom_store.async_save(compressed_traces)
         except Exception as e:
