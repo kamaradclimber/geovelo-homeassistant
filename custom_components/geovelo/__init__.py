@@ -307,6 +307,10 @@ def sum_on_attribute(attribute_name, entries) -> int:
 def count_nightowl(entries) -> int:
     count = 0
     for t in entries:
+        if "usertracegameprogress" not in t or t["usertracegameprogress"] is None:
+            continue
+        if "during_night" not in t["usertracegameprogress"]:
+            continue
         if t["usertracegameprogress"]["during_night"]:
             count += 1
     return count
