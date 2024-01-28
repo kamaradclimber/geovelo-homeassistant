@@ -315,7 +315,22 @@ def compute_co2(entries):
     return sum_on_attribute("distance", entries) * CO2_PER_KM
 
 
-def build_sensors():
+def consecutive_days(timezone, traces) -> Optional[int]:
+    today = datetime.now(tz=timezone).date()
+    days_of_cycling = set()
+    for t in traces:
+        d = parse_date(t["start_datetime"]).date()
+        days_of_cycling.add(d)
+    last_day_cycled = max(days_of_cycling)
+    if today - last_day_cycled > timedelta(days=1):
+        return 0
+    checked_day = last_day_cycled
+    while checked_day in days_of_cycling:
+        checked_day -= timedelta(days=1)
+    return int((last_day_cycled - checked_day).total_seconds() / 3600 / 24)
+
+
+def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
     return [
         GeoveloSensorEntityDescription(
             key="distance",
@@ -348,6 +363,15 @@ def build_sensors():
             name="Night trips",
             icon="mdi:owl",
             on_receive=count_nightowl,
+            state_class=SensorStateClass.TOTAL,
+        ),
+        GeoveloSensorEntityDescription(
+            key="consecutive_days_of_cycling",
+            name="Consecutive days of cycling",
+            icon="mdi:medal",
+            on_receive=partial(
+                consecutive_days, tz.gettz(hass.config.as_dict()["time_zone"])
+            ),
             state_class=SensorStateClass.TOTAL,
         ),
     ]

@@ -19,7 +19,7 @@ async def async_setup_entry(
         GeoveloSensorEntity(
             geovelo_coordinator, hass, entry, description, async_add_entities
         )
-        for description in build_sensors()
+        for description in build_sensors(hass)
     ]
 
     async_add_entities(sensors)
