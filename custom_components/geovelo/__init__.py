@@ -230,6 +230,17 @@ class GeoveloAPICoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error communicating with API: {err}")
 
 
+class GeoveloUtilityMeterSensor(UtilityMeterSensor):
+    def __init__(self, icon, device_class, **args):
+        super().__init__(**args)
+        self._attr_device_class = device_class
+        self._attr_icon = icon
+
+    @property
+    def device_class(self) -> SensorDeviceClass | None:
+        return self._attr_device_class
+
+
 @dataclass(frozen=True, kw_only=True)
 class GeoveloSensorEntityDescription(SensorEntityDescription):
     on_receive: Callable | None = None
@@ -270,7 +281,9 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
         if self.entity_description.monthly_utility:
-            monthly = UtilityMeterSensor(
+            monthly = GeoveloUtilityMeterSensor(
+                icon=self.entity_description.icon,
+                device_class=self.entity_description.device_class,
                 meter_type="monthly",
                 name=f"Monthly {self.name}",
                 source_entity=self.entity_id,
@@ -355,6 +368,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             key="distance",
             name="Total cycled distance",
             native_unit_of_measurement="m",
+            icon="mdi:map-marker-distance",
             device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
             monthly_utility=True,
@@ -373,6 +387,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
         GeoveloSensorEntityDescription(
             key="trip_count",
             name="Number of trips",
+            icon="mdi:counter",
             on_receive=len,
             monthly_utility=True,
             state_class=SensorStateClass.TOTAL,
@@ -405,6 +420,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
         GeoveloSensorEntityDescription(
             key="vertical_gain",
             name="Vertical gain",
+            icon="mdi:summit",
             on_receive=partial(sum_on_attribute_with_none, "vertical_gain"),
             device_class=SensorDeviceClass.DISTANCE,
             native_unit_of_measurement="m",
@@ -418,7 +434,6 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             device_class=SensorDeviceClass.SPEED,
             native_unit_of_measurement="km/h",
             suggested_display_precision=0,
-            monthly_utility=True,
             state_class=SensorStateClass.MEASUREMENT,
         ),
     ]
