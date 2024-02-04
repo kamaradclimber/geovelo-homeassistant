@@ -304,6 +304,10 @@ def sum_on_attribute(attribute_name, entries) -> int:
     return sum([el[attribute_name] for el in entries])
 
 
+def sum_on_attribute_with_none(attribute_name, entries) -> int:
+    return sum([el[attribute_name] or 0 for el in entries])
+
+
 def count_nightowl(entries) -> int:
     count = 0
     for t in entries:
@@ -387,6 +391,15 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             on_receive=partial(sum_on_attribute, "duration"),
             device_class=SensorDeviceClass.DURATION,
             native_unit_of_measurement="s",
+            monthly_utility=True,
+            state_class=SensorStateClass.TOTAL,
+        ),
+        GeoveloSensorEntityDescription(
+            key="vertical_gain",
+            name="Vertical gain",
+            on_receive=partial(sum_on_attribute_with_none, "vertical_gain"),
+            device_class=SensorDeviceClass.DISTANCE,
+            native_unit_of_measurement="m",
             monthly_utility=True,
             state_class=SensorStateClass.TOTAL,
         ),
