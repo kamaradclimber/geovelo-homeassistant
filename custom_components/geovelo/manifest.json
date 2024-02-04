@@ -3,14 +3,14 @@
   "name": "Geovelo",
   "codeowners": ["@kamaradclimber"],
   "config_flow": true,
+  "dependencies": [
+    "utility_meter"
+  ],
   "documentation": "https://github.com/kamaradclimber/geovelo-homeassistant",
   "integration_type": "device",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/kamaradclimber/geovelo-homeassistant/issues",
   "requirements": [
-  ],
-  "dependencies": [
-    "utility_meter"
   ],
   "version": "0.1.0"
 }
