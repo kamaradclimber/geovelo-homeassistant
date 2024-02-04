@@ -381,6 +381,15 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             ),
             state_class=SensorStateClass.TOTAL,
         ),
+        GeoveloSensorEntityDescription(
+            key="cycle_time",
+            name="Time cycling",
+            on_receive=partial(sum_on_attribute, "duration"),
+            device_class=SensorDeviceClass.DURATION,
+            native_unit_of_measurement="s",
+            monthly_utility=True,
+            state_class=SensorStateClass.TOTAL,
+        ),
     ]
 
 
