@@ -308,6 +308,14 @@ def sum_on_attribute_with_none(attribute_name, entries) -> int:
     return sum([el[attribute_name] or 0 for el in entries])
 
 
+def average_speed(entries):
+    total_time = sum_on_attribute("duration", entries)
+    if total_time == 0:
+        return None
+    total_distance = sum_on_attribute("distance", entries)
+    return total_distance / 1000 / (total_time / 3600)
+
+
 def count_nightowl(entries) -> int:
     count = 0
     for t in entries:
@@ -402,6 +410,16 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             native_unit_of_measurement="m",
             monthly_utility=True,
             state_class=SensorStateClass.TOTAL,
+        ),
+        GeoveloSensorEntityDescription(
+            key="average_speed",
+            name="Average speed",
+            on_receive=average_speed,
+            device_class=SensorDeviceClass.SPEED,
+            native_unit_of_measurement="km/h",
+            suggested_display_precision=0,
+            monthly_utility=True,
+            state_class=SensorStateClass.MEASUREMENT,
         ),
     ]
 
