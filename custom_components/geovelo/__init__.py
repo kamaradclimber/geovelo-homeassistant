@@ -369,6 +369,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             key="distance",
             name="Total cycled distance",
             native_unit_of_measurement="m",
+            suggested_unit_of_measurement="km",
             icon="mdi:map-marker-distance",
             device_class=SensorDeviceClass.DISTANCE,
             on_receive=partial(sum_on_attribute, "distance"),
