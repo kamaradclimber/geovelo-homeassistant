@@ -368,11 +368,26 @@ def consecutive_days(timezone, traces) -> Optional[int]:
         checked_day -= timedelta(days=1)
     return int((last_day_cycled - checked_day).total_seconds() / 3600 / 24)
 
-def check_distance_achievement(hass, total_cycled_meters):
 
-    _LOGGER.warn(f"Total cycled is {total_cycled_meters}")
+def non_stop_achievements(hass, consecutive_days):
+    if consecutive_days >= 8:
+        hass.bus.fire(
+            "achievement_granted",
+            {
+                "major_version": 0,
+                "minor_version": 1,
+                "achievement": {
+                    "title": "8 days a week 🎵",
+                    "description": "You've cycled every day, for more than a week.",
+                    "source": "geovelo",
+                    "id": "009e4dcd-f83a-40d2-b61f-89e94ecf07fa",
+                },
+            },
+        )
+
+
+def check_distance_achievement(hass, total_cycled_meters):
     if total_cycled_meters > 3_500_000:
-        _LOGGER.warn(f"Emitting tour de france achievement")
         hass.bus.fire(
             "achievement_granted",
             {
@@ -415,6 +430,7 @@ def check_distance_achievement(hass, total_cycled_meters):
                 },
             },
         )
+
 
 def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
     return [
@@ -462,6 +478,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             compute_value=partial(
                 consecutive_days, tz.gettz(hass.config.as_dict()["time_zone"])
             ),
+            post_compute_value=partial(non_stop_achievements, hass),
             state_class=SensorStateClass.TOTAL,
         ),
         GeoveloSensorEntityDescription(
