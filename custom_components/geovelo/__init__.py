@@ -243,7 +243,10 @@ class GeoveloUtilityMeterSensor(UtilityMeterSensor):
 
 @dataclass(frozen=True, kw_only=True)
 class GeoveloSensorEntityDescription(SensorEntityDescription):
-    on_receive: Callable | None = None
+    # callable that will be called to compute state
+    compute_value: Callable | None = None
+    # additional hook to receive value computed by `compute_value`. Will be used mostly for achievements
+    post_compute_value: Callable | None = None
     monthly_utility: bool = False
 
 
@@ -307,10 +310,13 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
         if not self.coordinator.last_update_success:
             _LOGGER.debug("Last coordinator failed, assuming state has not changed")
             return
-        if self.entity_description.on_receive is not None:
-            self._attr_native_value = self.entity_description.on_receive(
+        if self.entity_description.compute_value is not None:
+            self._attr_native_value = self.entity_description.compute_value(
                 self.coordinator.data
             )
+            # post processing, possibly to create an event
+            if self.entity_description.post_compute_value is not None:
+                self.entity_description.post_compute_value(self._attr_native_value)
             self.async_write_ha_state()
 
 
@@ -362,6 +368,53 @@ def consecutive_days(timezone, traces) -> Optional[int]:
         checked_day -= timedelta(days=1)
     return int((last_day_cycled - checked_day).total_seconds() / 3600 / 24)
 
+def check_distance_achievement(hass, total_cycled_meters):
+
+    _LOGGER.warn(f"Total cycled is {total_cycled_meters}")
+    if total_cycled_meters > 3_500_000:
+        _LOGGER.warn(f"Emitting tour de france achievement")
+        hass.bus.fire(
+            "achievement_granted",
+            {
+                "major_version": 0,
+                "minor_version": 1,
+                "achievement": {
+                    "title": "Tour de France",
+                    "description": "3500km is the average length of the Tour de France competition, could you do it in 23 days?",
+                    "source": "geovelo",
+                    "id": "009e4dcd-f83a-40d2-b61f-89e94ecf07fa",
+                },
+            },
+        )
+    if total_cycled_meters > 6_371_000:
+        hass.bus.fire(
+            "achievement_granted",
+            {
+                "major_version": 0,
+                "minor_version": 1,
+                "achievement": {
+                    "title": "First journey to the center of the Earth",
+                    "description": "Going on a straight line, you would have reached center of the earth",
+                    "source": "geovelo",
+                    "id": "94d28dbc-c616-486f-bd3e-0cfad6aa2497",
+                },
+            },
+        )
+    # this one is quite unlikely!
+    if total_cycled_meters > 384_400_000:
+        hass.bus.fire(
+            "achievement_granted",
+            {
+                "major_version": 0,
+                "minor_version": 1,
+                "achievement": {
+                    "title": "To the Moon",
+                    "description": "Going on a straight line, you would have reached the Moon",
+                    "source": "geovelo",
+                    "id": "af9fa29c-4b70-45dd-800c-ef87d3509058",
+                },
+            },
+        )
 
 def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
     return [
@@ -372,7 +425,8 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             suggested_unit_of_measurement="km",
             icon="mdi:map-marker-distance",
             device_class=SensorDeviceClass.DISTANCE,
-            on_receive=partial(sum_on_attribute, "distance"),
+            compute_value=partial(sum_on_attribute, "distance"),
+            post_compute_value=partial(check_distance_achievement, hass),
             monthly_utility=True,
             state_class=SensorStateClass.TOTAL,
         ),
@@ -382,7 +436,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             native_unit_of_measurement="kg",
             device_class=SensorDeviceClass.WEIGHT,
             icon="mdi:leaf",
-            on_receive=compute_co2,
+            compute_value=compute_co2,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=0,
         ),
@@ -390,7 +444,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             key="trip_count",
             name="Number of trips",
             icon="mdi:counter",
-            on_receive=len,
+            compute_value=len,
             monthly_utility=True,
             state_class=SensorStateClass.TOTAL,
         ),
@@ -398,14 +452,14 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             key="night_owl_stats",
             name="Night trips",
             icon="mdi:owl",
-            on_receive=count_nightowl,
+            compute_value=count_nightowl,
             state_class=SensorStateClass.TOTAL,
         ),
         GeoveloSensorEntityDescription(
             key="consecutive_days_of_cycling",
             name="Consecutive days of cycling",
             icon="mdi:medal",
-            on_receive=partial(
+            compute_value=partial(
                 consecutive_days, tz.gettz(hass.config.as_dict()["time_zone"])
             ),
             state_class=SensorStateClass.TOTAL,
@@ -413,7 +467,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
         GeoveloSensorEntityDescription(
             key="cycle_time",
             name="Time cycling",
-            on_receive=partial(sum_on_attribute, "duration"),
+            compute_value=partial(sum_on_attribute, "duration"),
             device_class=SensorDeviceClass.DURATION,
             native_unit_of_measurement="s",
             monthly_utility=True,
@@ -423,7 +477,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             key="vertical_gain",
             name="Vertical gain",
             icon="mdi:summit",
-            on_receive=partial(sum_on_attribute_with_none, "vertical_gain"),
+            compute_value=partial(sum_on_attribute_with_none, "vertical_gain"),
             device_class=SensorDeviceClass.DISTANCE,
             native_unit_of_measurement="m",
             monthly_utility=True,
@@ -432,7 +486,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
         GeoveloSensorEntityDescription(
             key="average_speed",
             name="Average speed",
-            on_receive=average_speed,
+            compute_value=average_speed,
             device_class=SensorDeviceClass.SPEED,
             native_unit_of_measurement="km/h",
             suggested_display_precision=0,
@@ -443,7 +497,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
 
 @dataclass(frozen=True, kw_only=True)
 class GeoveloImageEntityDescription(ImageEntityDescription):
-    on_receive: Callable | None = None
+    compute_value: Callable | None = None
 
 
 class GeoveloImageEntity(CoordinatorEntity, ImageEntity):
@@ -481,8 +535,8 @@ class GeoveloImageEntity(CoordinatorEntity, ImageEntity):
         if not self.coordinator.last_update_success:
             _LOGGER.debug("Last coordinator failed, assuming state has not changed")
             return
-        if self.entity_description.on_receive is not None:
-            (image_last_updated, image_url) = self.entity_description.on_receive(
+        if self.entity_description.compute_value is not None:
+            (image_last_updated, image_url) = self.entity_description.compute_value(
                 self.coordinator.data
             )
             self._attr_image_last_updated = image_last_updated
@@ -506,6 +560,6 @@ def build_images():
         GeoveloImageEntityDescription(
             key="last_trace",
             name="Last Trip",
-            on_receive=extract_last_trip_info,
+            compute_value=extract_last_trip_info,
         )
     ]
