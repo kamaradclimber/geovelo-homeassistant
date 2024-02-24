@@ -300,6 +300,7 @@ class GeoveloSensorEntity(CoordinatorEntity, SensorEntity):
                 periodically_resetting=False,
                 tariff_entity=None,
                 tariff=None,
+                sensor_always_available=True,
                 device_info=self.device_info,
             )
             self._async_add_entities([monthly])
