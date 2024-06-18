@@ -39,6 +39,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
+from homeassistant.util import dt as dt_util
 from .const import DOMAIN, GEOVELO_API_URL
 from .api import GeoveloApi, GeoveloApiError
 
@@ -477,7 +478,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             name="Consecutive days of cycling",
             icon="mdi:medal",
             compute_value=partial(
-                consecutive_days, tz.gettz(hass.config.as_dict()["time_zone"])
+                consecutive_days, dt_util.get_default_time_zone() 
             ),
             post_compute_value=partial(non_stop_achievements, hass),
             state_class=SensorStateClass.TOTAL,
