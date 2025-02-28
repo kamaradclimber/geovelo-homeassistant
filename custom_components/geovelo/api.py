@@ -66,7 +66,7 @@ class GeoveloApi:
 
     async def get_traces(self, start_date, end_date) -> list:
         """All traces in the selected time period"""
-        url = f"{GEOVELO_API_URL}/api/v5/users/{self._user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=50"
+        url = f"{GEOVELO_API_URL}/api/v6/users/{self._user_id}/traces?period=custom&date_start={start_date.strftime('%d-%m-%Y')}&date_end={end_date.strftime('%d-%m-%Y')}&ordering=-start_datetime&page=1&page_size=50"
         _LOGGER.debug(f"Will contact {url} to get traces")
         return await self.fetch_next(url)
 
