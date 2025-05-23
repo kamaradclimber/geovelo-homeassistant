@@ -446,6 +446,10 @@ def ontraces[F: Any](f: Callable[[list], F]) -> Callable[[dict], F]:
         return f(data["traces"])
     return w
 
+def onzones[F: Any](f: Callable[[list], F]) -> Callable[[dict], F]:
+    def w(data: dict) -> F:
+        return f(data["zones"])
+    return w
 
 def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
     return [
@@ -523,6 +527,13 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             native_unit_of_measurement="km/h",
             suggested_display_precision=0,
             state_class=SensorStateClass.MEASUREMENT,
+        ),
+        GeoveloSensorEntityDescription(
+            key="h3_zones",
+            name="Explored zones",
+            compute_value=onzones(len),
+            icon="mdi:map",
+            state_class=SensorStateClass.TOTAL,
         ),
     ]
 
