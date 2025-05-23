@@ -70,15 +70,17 @@ class GeoveloApi:
         _LOGGER.debug(f"Will contact {url} to get traces")
         return await self.fetch_next(url)
 
-    async def fetch_next(self, url) -> list:
-        headers = {
+    def headers(self) -> dict:
+        return {
             "Api-Key": API_KEY,
             "Authorization": self._authorization_header,
             "Source": "website",
             "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
         }
 
-        resp = await self._session.get(url, headers=headers)
+    async def fetch_next(self, url) -> list:
+
+        resp = await self._session.get(url, headers=self.headers())
         if resp.status != 200:
             d = await resp.text()
             _LOGGER.debug(f"Failure {resp}: {d}")
@@ -99,3 +101,16 @@ class GeoveloApi:
             traces = await self.fetch_next(urlunparse(next_page))
 
         return data["results"] + traces
+
+    async def get_zones(self) -> list:
+        url = f"{GEOVELO_API_URL}/api/v1/users/{self._user_id}/h3_zones"
+        resp = await self._session.get(url, headers=self.headers())
+        if resp.status != 200:
+            d = await resp.text()
+            _LOGGER.debug(f"Failure {resp}: {d}")
+            raise GeoveloApiError(
+                f"Unable to get user zones for {self._user_id}, response code was {resp.status}"
+            )
+
+        data = await resp.json()
+        return data
