@@ -378,6 +378,36 @@ def consecutive_days(timezone, traces) -> Optional[int]:
         checked_day -= timedelta(days=1)
     return int((last_day_cycled - checked_day).total_seconds() / 3600 / 24)
 
+def explorer_achievement(hass, explored_zone_count):
+    if explored_zone_count >= 1000:
+        hass.bus.fire(
+            "achievement_granted",
+            {
+                "major_version": 0,
+                "minor_version": 1,
+                "achievement": {
+                    "title": "Magellan",
+                    "description": "You've explored more than 1000 zones",
+                    "source": "geovelo",
+                    "id": "109e4dcd-f83a-40d2-b61f-89e94ecf16ad",
+                },
+            },
+        )
+    if explored_zone_count >= 100:
+        hass.bus.fire(
+            "achievement_granted",
+            {
+                "major_version": 0,
+                "minor_version": 1,
+                "achievement": {
+                    "title": "Columbus",
+                    "description": "You've explored more than 100 zones",
+                    "source": "geovelo",
+                    "id": "123e4def-fffa-36d2-b65f-89e94ecf16ae",
+                },
+            },
+        )
+
 
 def non_stop_achievements(hass, consecutive_days):
     if consecutive_days >= 8:
@@ -532,6 +562,7 @@ def build_sensors(hass: HomeAssistant) -> list[GeoveloSensorEntityDescription]:
             key="h3_zones",
             name="Explored zones",
             compute_value=onzones(len),
+            post_compute_value=partial(explorer_achievement, hass),
             icon="mdi:map",
             state_class=SensorStateClass.TOTAL,
         ),
