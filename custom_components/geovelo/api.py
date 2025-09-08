@@ -17,7 +17,7 @@ class GeoveloApiError(RuntimeError):
     pass
 
 
-API_KEY = "0f8c781a-b4b4-4d19-b931-1e82f22e769f"  # this api key does not seem to be a secret since we can find it in developer tools
+API_KEY = "0ecc2713-d912-45b0-958f-cd501908669b"  # this api key does not seem to be a secret since we can find it in developer tools
 
 
 class GeoveloApi:
