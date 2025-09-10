@@ -17,11 +17,16 @@ class GeoveloApiError(RuntimeError):
     pass
 
 
-API_KEY = "0ecc2713-d912-45b0-958f-cd501908669b"  # this api key does not seem to be a secret since we can find it in developer tools
+API_KEYS = [
+    "0ecc2713-d912-45b0-958f-cd501908669b",
+    "0f8c781a-b4b4-4d19-b931-1e82f22e769f",
+]  # this api key does not seem to be a secret since we can find it in developer tools
 
 
 class GeoveloApi:
     """Api to get data from geovelo"""
+
+    MAX_AUTH_ATTEMPTS = 10
 
     def __init__(
         self, session: Optional[aiohttp.ClientSession] = None, timeout=CLIENT_TIMEOUT
@@ -29,6 +34,7 @@ class GeoveloApi:
         self._timeout = timeout
         self._session = session or aiohttp.ClientSession()
         self._user_id = None
+        self.key_index = 0
 
     @property
     def user_id(self) -> Optional[int]:
@@ -42,25 +48,34 @@ class GeoveloApi:
             .strip()
             .decode("ascii")
         )
-        headers = {
-            "Api-Key": API_KEY,
-            "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en,en-US;q=0.5",
-            # yes it is a semi-column separation in the password
-            "Authentication": re.sub("\n", "", encoded_auth),
-            "Source": "website",
-            "Origin": "https://www.geovelo.fr",
-            "Referer": "https://www.geovelo.fr/",
-            "Content-Length": "0",
-        }
-        resp = await self._session.post(url, headers=headers)
-        if resp.status != 200:
-            raise GeoveloApiError(
-                f"Unable to get authorization token for {username}. Status was {resp.status}"
-            )
+        while True:
+            headers = {
+                "Api-Key": API_KEYS[self.key_index % len(API_KEYS)],
+                "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
+                "Accept": "application/json, text/plain, */*",
+                "Accept-Language": "en,en-US;q=0.5",
+                # yes it is a semi-column separation in the password
+                "Authentication": re.sub("\n", "", encoded_auth),
+                "Source": "website",
+                "Origin": "https://www.geovelo.fr",
+                "Referer": "https://www.geovelo.fr/",
+                "Content-Length": "0",
+            }
+            resp = await self._session.post(url, headers=headers)
+            if resp.status != 200:
+                _LOGGER.warning(f"Failed to authenticate against api: {resp.status}")
+                if resp.status == 401:
+                    _LOGGER.warning("Will try next known api key")
+                    self.key_index += 1
+                    if self.key_index < self.MAX_AUTH_ATTEMPTS:
+                        continue
+                    _LOGGER.error("No more api keys to try, sorry")
+                raise GeoveloApiError(
+                    f"Unable to get authorization token for {username}. Status was {resp.status}"
+                )
+            break
 
-        _LOGGER.debug(f"Got auth data from geovelo ✅")
+        _LOGGER.debug("Got auth data from geovelo ✅")
         self._user_id = resp.headers["userid"]
         self._authorization_header = resp.headers["Authorization"]
 
@@ -72,7 +87,7 @@ class GeoveloApi:
 
     def headers(self) -> dict:
         return {
-            "Api-Key": API_KEY,
+            "Api-Key": API_KEYS[self.key_index % len(API_KEYS)],
             "Authorization": self._authorization_header,
             "Source": "website",
             "User-Agent": "https://github.com/kamaradclimber/geovelo-homeassistant",
