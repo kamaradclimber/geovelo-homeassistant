@@ -4,6 +4,7 @@ import json
 import gzip
 import copy
 import base64
+import inspect
 import urllib.parse
 import logging
 from functools import partial
@@ -246,10 +247,13 @@ class GeoveloUtilityMeterSensor(UtilityMeterSensor):
         self._attr_icon = args["icon"]
         del args["icon"]
         del args["device_class"]
-        if AwesomeVersion(HA_VERSION) < AwesomeVersion("2025.8"):
-            super().__init__(**args)
-        else:
-            super().__init__(hass, **args)
+        # HA core removed the `hass` constructor argument from UtilityMeterSensor
+        # in 2026.8 (home-assistant/core#177603). Inspect the installed
+        # signature instead of comparing HA_VERSION so this keeps working both
+        # before and after that change, regardless of which side we're on.
+        if "hass" in inspect.signature(UtilityMeterSensor.__init__).parameters:
+            args["hass"] = hass
+        super().__init__(**args)
 
 
     @property
