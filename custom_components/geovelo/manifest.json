@@ -1,7 +1,12 @@
 {
   "domain": "geovelo",
   "name": "Geovelo",
-  "codeowners": ["@kamaradclimber"],
+  "categories": [
+    "vehicles_transport.bikes_scooters"
+  ],
+  "codeowners": [
+    "@kamaradclimber"
+  ],
   "config_flow": true,
   "dependencies": [
     "utility_meter"
@@ -10,7 +15,6 @@
   "integration_type": "device",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/kamaradclimber/geovelo-homeassistant/issues",
-  "requirements": [
-  ],
-  "version": "0.1.0"
+  "requirements": [],
+  "version": "0.9.5"
 }
