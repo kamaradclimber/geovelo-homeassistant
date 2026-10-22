@@ -16,5 +16,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/kamaradclimber/geovelo-homeassistant/issues",
   "requirements": [],
-  "version": "0.9.5"
+  "version": "0.9.6"
 }
